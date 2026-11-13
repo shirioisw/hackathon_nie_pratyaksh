@@ -50,7 +50,7 @@
   #msg{min-height:44px;margin-top:12px;padding:10px 12px;border-radius:6px;background:#fff;border-left:6px solid var(--muted)}
   #msg.good{border-color:var(--ok)} #msg.bad{border-color:var(--chili)}
   button:focus-visible{outline:3px solid #0a58ff;outline-offset:2px}
-  .reset{margin-top:12px;background:none;border:0;color:#fff;text-decoration:underline;cursor:pointer;font:inherit}
+  .reset{margin-top:12px;background:none;border:0;color:var(--chili);text-decoration:underline;cursor:pointer;font:inherit}
   .mute{font:inherit;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:20px;padding:6px 14px;cursor:pointer}
   .up button.poor{background:#c9c3b0;color:#6d6a5e}
   .pop{position:fixed;pointer-events:none;font-weight:800;font-size:1.3rem;color:var(--turmeric);text-shadow:0 2px 0 #7a5a00,0 0 8px #0008;animation:floatUp .9s ease-out forwards;z-index:20}
@@ -94,6 +94,7 @@
       <p class="rate" id="rate"></p>
       <div id="msg" role="status">Serve your first customer to start earning.</div>
       <button class="reset" id="reset">Reset game</button>
+      <small class="hint">Progress saves automatically in this browser.</small>
     </section>
 
     <section>
@@ -167,6 +168,18 @@ function celebrate(text){
 }
 
 function fresh(){ return {coins:0, sales:0, slots:[null,null,null]}; }
+const KEY = "canteenClicker.v1";
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+function load(){
+  try{
+    const d = JSON.parse(localStorage.getItem(KEY));
+    if(d && typeof d.coins === "number" && typeof d.sales === "number" && Array.isArray(d.slots) && d.slots.length === SLOT_MAX){
+      d.slots = d.slots.map(id => UPGRADES.some(u => u.id === id) ? id : null);
+      return d;
+    }
+  }catch(e){}
+  return null;
+}
 function active(){ return state.slots.filter(Boolean).map(id => UPGRADES.find(u => u.id === id)); }
 function price(kind){
   let p = BASE[kind];
@@ -221,6 +234,7 @@ function replace(slotIndex){
 }
 
 function render(){
+  save();
   $("coins").textContent = fmt(Math.floor(state.coins*10)/10);
   $("sales").textContent = state.sales;
   $("cps").textContent = fmt(autoRate()*avgPrice());
@@ -289,7 +303,9 @@ $("mute").onclick = () => {
   if(!muted) sfx.click();
 };
 
-state = fresh(); render();
+const saved = load();
+state = saved || fresh(); render();
+if(saved && (saved.sales > 0)) say("Welcome back! Your progress was restored.", "good");
 </script>
 </body>
 </html>

@@ -11,19 +11,20 @@ Built for **VibeSprint, Problem Card 12 (Fun & Creative)**.
 ## Table of contents
 
 1. [The idea](#the-idea)
-2. [How to run it](#how-to-run-it)
-3. [How to play](#how-to-play)
-4. [Game mechanics in detail](#game-mechanics-in-detail)
-5. [Upgrades](#upgrades)
-6. [The 3-slot limit and swap fee](#the-3-slot-limit-and-swap-fee)
-7. [Judge verification path](#judge-verification-path)
-8. [Feedback, validation and result states](#feedback-validation-and-result-states)
-9. [Sound and animation](#sound-and-animation)
-10. [Accessibility](#accessibility)
-11. [Build rules checklist](#build-rules-checklist)
-12. [Tech and project structure](#tech-and-project-structure)
-13. [Testing it yourself](#testing-it-yourself)
-14. [Ideas for the future](#ideas-for-the-future)
+2. [The Minute 40 twist and constraints](#the-minute-40-twist-and-constraints)
+3. [How to run it](#how-to-run-it)
+4. [How to play](#how-to-play)
+5. [Game mechanics in detail](#game-mechanics-in-detail)
+6. [Upgrades](#upgrades)
+7. [The 3-slot limit and swap fee](#the-3-slot-limit-and-swap-fee)
+8. [Judge verification path](#judge-verification-path)
+9. [Feedback, validation and result states](#feedback-validation-and-result-states)
+10. [Sound and animation](#sound-and-animation)
+11. [Accessibility](#accessibility)
+12. [Build rules checklist](#build-rules-checklist)
+13. [Tech and project structure](#tech-and-project-structure)
+14. [Testing it yourself](#testing-it-yourself)
+15. [Ideas for the future](#ideas-for-the-future)
 
 ---
 
@@ -34,6 +35,19 @@ Idle clickers are satisfying because every click makes a number go up, and every
 You start with an empty counter and two items to sell. Early on you earn coins by clicking. As you buy staff and equipment, customers start getting served on their own, and you move from serving everyone by hand to running the canteen.
 
 The twist in the design is the **three-slot limit**. You can't stack every upgrade, so you decide which combination makes the most money, and swapping out an upgrade costs an extra fee.
+
+## The Minute 40 twist and constraints
+
+**Twist:** limited counter space. Only three upgrades may be active at a time, so players must choose a strategy and can swap an upgrade at a cost.
+
+| Requirement | How the game handles it |
+|-------------|-------------------------|
+| Only three upgrades active at a time | The counter has 3 slots, and the code never allows a fourth active upgrade |
+| Swap an upgrade at a cost | With 3 slots full, a new upgrade needs the upgrade price plus a 25-coin swap fee, and you choose which slot to replace |
+| At least 5 upgrades with visible costs and multipliers | There are 6 upgrades, and each card shows its cost and effect (flat bonuses, percentage boosts, automatic serving and an all-coins multiplier) |
+| Maximum 3 active equip slots at once | Enforced, and shown as "Upgrade slots: X of 3 used" with a progress bar |
+| Instant state updates with local persistence and reset | Coins, sales and slots update immediately. Progress is saved automatically in the browser and restored when you come back. **Reset game** clears it |
+| No microtransactions or real currency | Coins exist only inside the game. Nothing can be bought with real money |
 
 ## How to run it
 
@@ -50,7 +64,7 @@ There is nothing to install. The game is a single file with no API, no login, no
 3. **Buy upgrades.** The upgrade panel lists six upgrades with their cost and effect. When you can afford one, click **Buy**.
 4. **Fill your slots.** Bought upgrades go into one of three upgrade slots. The slot bar shows how many are in use.
 5. **Make room.** Once all three slots are full, a new upgrade needs a swap: pick a slot to replace and pay the upgrade's price plus a swap fee.
-6. **Reset anytime.** The **Reset game** link under the counter starts a fresh game.
+6. **Reset anytime.** The **Reset game** link under the counter starts a fresh game and clears your saved progress. Otherwise, your progress is saved automatically and is still there next time you open the game in the same browser.
 
 ## Game mechanics in detail
 
@@ -163,6 +177,7 @@ A **Sound on / Sound off** button in the top right mutes everything. Browsers on
 - **Language:** plain HTML, CSS and JavaScript, with no frameworks or build step
 - **Hosting:** GitHub Pages, served from the `main` branch
 - **Audio:** the Web Audio API
+- **Saving:** progress is stored in the browser with localStorage
 - **Animation:** CSS keyframes and the Web Animations API
 
 ```
