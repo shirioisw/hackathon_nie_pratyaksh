@@ -51,13 +51,30 @@
   #msg.good{border-color:var(--ok)} #msg.bad{border-color:var(--chili)}
   button:focus-visible{outline:3px solid #0a58ff;outline-offset:2px}
   .reset{margin-top:12px;background:none;border:0;color:#fff;text-decoration:underline;cursor:pointer;font:inherit}
-  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+  .mute{font:inherit;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:20px;padding:6px 14px;cursor:pointer}
+  .up button.poor{background:#c9c3b0;color:#6d6a5e}
+  .pop{position:fixed;pointer-events:none;font-weight:800;font-size:1.3rem;color:var(--turmeric);text-shadow:0 2px 0 #7a5a00,0 0 8px #0008;animation:floatUp .9s ease-out forwards;z-index:20}
+  @keyframes floatUp{from{opacity:1;transform:translateY(0) scale(.8)}20%{transform:translateY(-14px) scale(1.2)}to{opacity:0;transform:translateY(-80px) scale(1)}}
+  .bump{animation:bump .25s}
+  @keyframes bump{50%{transform:scale(1.1);border-left-color:var(--chili)}}
+  .slot.popin{animation:slotPop .5s}
+  @keyframes slotPop{0%{transform:scale(.7);background:var(--turmeric)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+  .shake{animation:shake .35s}
+  @keyframes shake{20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+  .confetti{position:fixed;top:-14px;width:10px;height:14px;pointer-events:none;z-index:30;animation:fall 2s ease-in forwards}
+  @keyframes fall{to{transform:translate(var(--dx),105vh) rotate(var(--rot))}}
+  #banner{position:fixed;left:50%;top:16%;transform:translate(-50%,-20px);background:var(--turmeric);padding:14px 22px;border-radius:8px;font-weight:800;font-size:1.2rem;opacity:0;pointer-events:none;box-shadow:0 6px 0 #a47c00;z-index:40;text-align:center}
+  #banner.show{animation:banner 2.4s}
+  @keyframes banner{10%,80%{opacity:1;transform:translate(-50%,0)}to{opacity:0;transform:translate(-50%,-10px)}}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
+<div id="banner" role="status"></div>
 <div class="wrap">
   <header>
     <div><h1>Canteen Clicker</h1><p>Sell samosas and chai, earn coins, hire staff.</p></div>
+    <button class="mute" id="mute" aria-pressed="false">🔊 Sound on</button>
   </header>
 
   <div class="stats" aria-live="polite">
@@ -102,7 +119,52 @@ const UPGRADES = [
 ];
 const BASE = {samosa:5, chai:3};
 const $ = id => document.getElementById(id);
-let state, pending = null;
+let state, pending = null, justFilled = -1;
+const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let audioCtx, muted = false;
+function tone(freq, dur, type="sine", vol=.12, when=0, slideTo){
+  if(muted) return;
+  try{
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === "suspended") audioCtx.resume();
+    const t = audioCtx.currentTime + when, o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    if(slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + dur);
+  }catch(e){}
+}
+const sfx = {
+  click(){ tone(520, .07, "triangle", .1, 0, 320); },
+  sell(){ tone(880, .1, "square", .06); tone(1320, .2, "square", .06, .07); },
+  buy(){ [523,659,784].forEach((f,i) => tone(f, .2, "triangle", .13, i*.08)); },
+  swap(){ tone(400, .12, "sawtooth", .07, 0, 700); tone(700, .16, "triangle", .1, .1); },
+  error(){ tone(170, .22, "sawtooth", .09, 0, 110); },
+  win(){ [523,659,784,1047,1319].forEach((f,i) => tone(f, .28, "triangle", .13, i*.09)); }
+};
+function popText(text, el){
+  if(calm) return;
+  const r = el.getBoundingClientRect(), d = document.createElement("div");
+  d.className = "pop"; d.textContent = text;
+  d.style.left = (r.left + r.width/2 - 24 + Math.random()*40 - 20) + "px";
+  d.style.top = (r.top + 8) + "px";
+  document.body.appendChild(d); setTimeout(() => d.remove(), 900);
+}
+function bump(el){ el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
+function celebrate(text){
+  sfx.win();
+  const b = $("banner"); b.textContent = text; b.classList.remove("show"); void b.offsetWidth; b.classList.add("show");
+  if(calm) return;
+  const colors = ["#f2b705","#c8341c","#1f7a45","#ffffff","#2d6cdf"];
+  for(let i=0;i<48;i++){
+    const c = document.createElement("i"); c.className = "confetti";
+    c.style.left = Math.random()*100 + "vw"; c.style.background = colors[i%5];
+    c.style.setProperty("--dx", (Math.random()*160-80) + "px");
+    c.style.setProperty("--rot", (Math.random()*720) + "deg");
+    c.style.animationDelay = Math.random()*.4 + "s";
+    document.body.appendChild(c); setTimeout(() => c.remove(), 2700);
+  }
+}
 
 function fresh(){ return {coins:0, sales:0, slots:[null,null,null]}; }
 function active(){ return state.slots.filter(Boolean).map(id => UPGRADES.find(u => u.id === id)); }
@@ -118,11 +180,17 @@ function autoRate(){ return active().reduce((s,u) => s + (u.auto||0), 0); }
 function avgPrice(){ return (price("samosa")+price("chai"))/2; }
 function fmt(n){ return Number.isInteger(n) ? n : n.toFixed(1); }
 
-function say(text, kind){ const m=$("msg"); m.textContent=text; m.className=kind||""; }
+function say(text, kind){
+  const m = $("msg"); m.textContent = text; m.className = kind || "";
+  if(kind === "bad"){ void m.offsetWidth; m.classList.add("shake"); sfx.error(); }
+}
 
 function sell(kind){
   const p = price(kind);
   state.coins += p; state.sales += 1;
+  popText("+" + fmt(p) + " 🪙", $(kind === "samosa" ? "sellSamosa" : "sellChai"));
+  bump($("coins").parentElement); sfx.sell();
+  if(state.sales % 25 === 0) celebrate(state.sales + " sales served! 🎉");
   say(`Sold a ${kind}: +${fmt(p)} coins.`, "good");
   render();
 }
@@ -136,9 +204,10 @@ function buy(id){
     render(); return;
   }
   if(state.coins < u.cost){ say(`Not enough coins for ${u.name}. You need ${fmt(u.cost - state.coins)} more.`, "bad"); return; }
-  state.coins -= u.cost; state.slots[free] = id;
+  state.coins -= u.cost; state.slots[free] = id; justFilled = free;
   say(`${u.name} is now active in slot ${free+1}.`, "good");
-  render();
+  sfx.buy(); render();
+  if(!state.slots.includes(null) && !state.celebrated){ state.celebrated = true; celebrate("All 3 slots filled! Full crew on duty 🎉"); }
 }
 
 function replace(slotIndex){
@@ -146,7 +215,7 @@ function replace(slotIndex){
   const total = u.cost + SWAP_FEE;
   if(state.coins < total){ say(`Swapping needs ${total} coins. You are ${fmt(total - state.coins)} short.`, "bad"); return; }
   const old = UPGRADES.find(x => x.id === state.slots[slotIndex]);
-  state.coins -= total; state.slots[slotIndex] = pending; pending = null;
+  state.coins -= total; state.slots[slotIndex] = pending; pending = null; justFilled = slotIndex; sfx.swap();
   say(`Swapped ${old.name} for ${u.name}. Paid ${total} coins (includes ${SWAP_FEE} swap fee).`, "good");
   render();
 }
@@ -166,7 +235,7 @@ function render(){
   $("slots").innerHTML = "";
   state.slots.forEach((id,i) => {
     const d = document.createElement("div");
-    d.className = "slot" + (id ? " full" : "") + (pending && id ? " pick" : "");
+    d.className = "slot" + (id ? " full" : "") + (pending && id ? " pick" : "") + (i === justFilled ? " popin" : "");
     const name = id ? UPGRADES.find(u => u.id===id).name : "Empty";
     d.innerHTML = `<div><b>Slot ${i+1}</b><br>${name}</div>`;
     if(pending && id){
@@ -175,6 +244,7 @@ function render(){
     }
     $("slots").appendChild(d);
   });
+  justFilled = -1;
 
   const list = $("upgrades"); list.innerHTML = "";
   UPGRADES.forEach(u => {
@@ -187,7 +257,7 @@ function render(){
     row.innerHTML = `<div><b>${u.name}</b><div class="eff">${u.eff}</div></div>`;
     const btn = document.createElement("button");
     btn.textContent = label;
-    btn.disabled = equipped || (!full && state.coins < u.cost);
+    btn.disabled = equipped; if(!equipped && !full && state.coins < u.cost) btn.className = "poor";
     if(full && !equipped) btn.className = "swap";
     btn.onclick = () => buy(u.id);
     row.appendChild(btn); list.appendChild(row);
@@ -205,6 +275,19 @@ setInterval(() => {
   state.coins += n*p; state.sales += n;
   render();
 }, 1000);
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if(!b || b.disabled || b.id === "mute") return;
+  sfx.click();
+  if(!calm) b.animate([{transform:"scale(1)"},{transform:"scale(.94)"},{transform:"scale(1.04)"},{transform:"scale(1)"}], {duration:200});
+});
+$("mute").onclick = () => {
+  muted = !muted;
+  $("mute").textContent = muted ? "🔇 Sound off" : "🔊 Sound on";
+  $("mute").setAttribute("aria-pressed", muted);
+  if(!muted) sfx.click();
+};
 
 state = fresh(); render();
 </script>
