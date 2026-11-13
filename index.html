@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canteen Clicker</title>
+<style>
+  :root{
+    --tile:#1d4b47; --tile-dark:#143633; --steel:#d9dedd; --turmeric:#f2b705;
+    --chili:#c8341c; --ticket:#fbf6e9; --ink:#1b1b1b; --muted:#5d6a68; --ok:#1f7a45;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;background:var(--tile);color:var(--ink);min-height:100vh;
+    background-image:linear-gradient(var(--tile-dark) 1px,transparent 1px),linear-gradient(90deg,var(--tile-dark) 1px,transparent 1px);background-size:48px 48px}
+  .wrap{max-width:1000px;margin:0 auto;padding:20px 16px 48px}
+  header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;color:#fff;margin-bottom:16px}
+  h1{margin:0;font-size:2.4rem;letter-spacing:-.5px}
+  header p{margin:0;opacity:.8}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+  .stat{background:var(--ticket);border-radius:6px;padding:12px 16px;border-left:8px solid var(--turmeric)}
+  .stat small{color:var(--muted);display:block}
+  .stat b{font-size:1.9rem}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}.stats b{font-size:1.4rem}}
+  section{background:var(--ticket);border-radius:6px;padding:16px}
+  h2{margin:0 0 4px;font-size:1.25rem}
+  .hint{color:var(--muted);margin:0 0 12px;font-size:.92rem}
+  .counter{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .sell{border:0;border-radius:6px;padding:20px 8px;cursor:pointer;font:inherit;font-weight:700;font-size:1.1rem;
+    background:var(--turmeric);color:var(--ink);box-shadow:0 4px 0 #a47c00;transition:transform .06s}
+  .sell.chai{background:var(--steel);box-shadow:0 4px 0 #8e9796}
+  .sell:active{transform:translateY(3px);box-shadow:0 1px 0 #a47c00}
+  .sell span{display:block;font-size:2.2rem}
+  .sell small{display:block;font-weight:400;margin-top:2px}
+  .rate{margin-top:12px;color:var(--muted)}
+  .slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:6px}
+  .slot{min-height:84px;border:2px dashed #b9b29d;border-radius:6px;padding:8px;font-size:.88rem;display:flex;flex-direction:column;justify-content:space-between}
+  .slot.full{border:2px solid var(--ok);background:#e9f4ec}
+  .slot.pick{border-color:var(--chili);background:#fdeceA}
+  .slot button{font:inherit;font-size:.8rem;margin-top:4px;cursor:pointer;border-radius:4px;border:1px solid var(--chili);background:#fff;color:var(--chili);padding:3px}
+  .bar{height:10px;background:#e3dcc6;border-radius:5px;overflow:hidden;margin:6px 0 14px}
+  .bar i{display:block;height:100%;background:var(--ok);transition:width .25s}
+  .up{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;padding:10px 0;border-top:1px solid #e3dcc6}
+  .up b{font-size:1rem}
+  .up .eff{color:var(--muted);font-size:.88rem}
+  .up button{font:inherit;font-weight:700;border:0;border-radius:6px;padding:8px 12px;cursor:pointer;background:var(--ink);color:#fff;min-width:118px}
+  .up button:disabled{background:#c9c3b0;color:#6d6a5e;cursor:not-allowed}
+  .up button.swap{background:var(--chili)}
+  .up.equipped .eff::after{content:" — active";color:var(--ok);font-weight:700}
+  #msg{min-height:44px;margin-top:12px;padding:10px 12px;border-radius:6px;background:#fff;border-left:6px solid var(--muted)}
+  #msg.good{border-color:var(--ok)} #msg.bad{border-color:var(--chili)}
+  button:focus-visible{outline:3px solid #0a58ff;outline-offset:2px}
+  .reset{margin-top:12px;background:none;border:0;color:#fff;text-decoration:underline;cursor:pointer;font:inherit}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1>Canteen Clicker</h1><p>Sell samosas and chai, earn coins, hire staff.</p></div>
+  </header>
+
+  <div class="stats" aria-live="polite">
+    <div class="stat"><small>Coins</small><b id="coins">0</b></div>
+    <div class="stat"><small>Total sales</small><b id="sales">0</b></div>
+    <div class="stat"><small>Coins per second</small><b id="cps">0</b></div>
+  </div>
+
+  <div class="grid">
+    <section>
+      <h2>Serving counter</h2>
+      <p class="hint">Click to serve a customer and earn coins.</p>
+      <div class="counter">
+        <button class="sell" id="sellSamosa"><span>🥟</span>Sell samosa<small id="priceSamosa"></small></button>
+        <button class="sell chai" id="sellChai"><span>🍵</span>Sell chai<small id="priceChai"></small></button>
+      </div>
+      <p class="rate" id="rate"></p>
+      <div id="msg" role="status">Serve your first customer to start earning.</div>
+      <button class="reset" id="reset">Reset game</button>
+    </section>
+
+    <section>
+      <h2>Upgrades</h2>
+      <p class="hint">You can run 3 active upgrades. A fourth needs a swap.</p>
+      <div class="slots" id="slots"></div>
+      <small id="slotText"></small>
+      <div class="bar"><i id="slotBar"></i></div>
+      <div id="upgrades"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const SLOT_MAX = 3, SWAP_FEE = 25;
+const UPGRADES = [
+  {id:"staff",   name:"Extra staff",        cost:40,  eff:"Serves 1 customer every second", auto:1},
+  {id:"counter", name:"Bigger counter",     cost:60,  eff:"+2 coins on every sale",          flat:2},
+  {id:"chutney", name:"Spicy chutney",      cost:80,  eff:"Samosas sell for +50%",           samosaMult:1.5},
+  {id:"kettle",  name:"Steel kettle",       cost:80,  eff:"Chai sells for +50%",             chaiMult:1.5},
+  {id:"cashier", name:"Cashier",            cost:150, eff:"Serves 3 more customers per second", auto:3},
+  {id:"menu",    name:"Festival menu board",cost:200, eff:"All coins x1.5",                  allMult:1.5},
+];
+const BASE = {samosa:5, chai:3};
+const $ = id => document.getElementById(id);
+let state, pending = null;
+
+function fresh(){ return {coins:0, sales:0, slots:[null,null,null]}; }
+function active(){ return state.slots.filter(Boolean).map(id => UPGRADES.find(u => u.id === id)); }
+function price(kind){
+  let p = BASE[kind];
+  const a = active();
+  a.forEach(u => { if(u.flat) p += u.flat; });
+  a.forEach(u => { if(kind==="samosa" && u.samosaMult) p *= u.samosaMult; if(kind==="chai" && u.chaiMult) p *= u.chaiMult; });
+  a.forEach(u => { if(u.allMult) p *= u.allMult; });
+  return Math.round(p*10)/10;
+}
+function autoRate(){ return active().reduce((s,u) => s + (u.auto||0), 0); }
+function avgPrice(){ return (price("samosa")+price("chai"))/2; }
+function fmt(n){ return Number.isInteger(n) ? n : n.toFixed(1); }
+
+function say(text, kind){ const m=$("msg"); m.textContent=text; m.className=kind||""; }
+
+function sell(kind){
+  const p = price(kind);
+  state.coins += p; state.sales += 1;
+  say(`Sold a ${kind}: +${fmt(p)} coins.`, "good");
+  render();
+}
+
+function buy(id){
+  const u = UPGRADES.find(x => x.id === id);
+  const free = state.slots.indexOf(null);
+  if(free === -1){
+    pending = id;
+    say(`All 3 slots are in use. Pick a slot to replace with ${u.name}. Cost ${u.cost} + ${SWAP_FEE} swap fee.`, "bad");
+    render(); return;
+  }
+  if(state.coins < u.cost){ say(`Not enough coins for ${u.name}. You need ${fmt(u.cost - state.coins)} more.`, "bad"); return; }
+  state.coins -= u.cost; state.slots[free] = id;
+  say(`${u.name} is now active in slot ${free+1}.`, "good");
+  render();
+}
+
+function replace(slotIndex){
+  const u = UPGRADES.find(x => x.id === pending);
+  const total = u.cost + SWAP_FEE;
+  if(state.coins < total){ say(`Swapping needs ${total} coins. You are ${fmt(total - state.coins)} short.`, "bad"); return; }
+  const old = UPGRADES.find(x => x.id === state.slots[slotIndex]);
+  state.coins -= total; state.slots[slotIndex] = pending; pending = null;
+  say(`Swapped ${old.name} for ${u.name}. Paid ${total} coins (includes ${SWAP_FEE} swap fee).`, "good");
+  render();
+}
+
+function render(){
+  $("coins").textContent = fmt(Math.floor(state.coins*10)/10);
+  $("sales").textContent = state.sales;
+  $("cps").textContent = fmt(autoRate()*avgPrice());
+  $("priceSamosa").textContent = `+${fmt(price("samosa"))} coins`;
+  $("priceChai").textContent = `+${fmt(price("chai"))} coins`;
+  $("rate").textContent = `Auto-serving: ${autoRate()} customer${autoRate()===1?"":"s"} per second.`;
+
+  const used = state.slots.filter(Boolean).length;
+  $("slotText").textContent = `Upgrade slots: ${used} of ${SLOT_MAX} used`;
+  $("slotBar").style.width = (used/SLOT_MAX*100) + "%";
+
+  $("slots").innerHTML = "";
+  state.slots.forEach((id,i) => {
+    const d = document.createElement("div");
+    d.className = "slot" + (id ? " full" : "") + (pending && id ? " pick" : "");
+    const name = id ? UPGRADES.find(u => u.id===id).name : "Empty";
+    d.innerHTML = `<div><b>Slot ${i+1}</b><br>${name}</div>`;
+    if(pending && id){
+      const b = document.createElement("button");
+      b.textContent = "Replace this"; b.onclick = () => replace(i); d.appendChild(b);
+    }
+    $("slots").appendChild(d);
+  });
+
+  const list = $("upgrades"); list.innerHTML = "";
+  UPGRADES.forEach(u => {
+    const equipped = state.slots.includes(u.id);
+    const full = used === SLOT_MAX;
+    const row = document.createElement("div");
+    row.className = "up" + (equipped ? " equipped" : "");
+    const cost = (full && !equipped) ? u.cost + SWAP_FEE : u.cost;
+    const label = equipped ? "Active" : full ? `Swap in: ${cost}` : `Buy: ${u.cost}`;
+    row.innerHTML = `<div><b>${u.name}</b><div class="eff">${u.eff}</div></div>`;
+    const btn = document.createElement("button");
+    btn.textContent = label;
+    btn.disabled = equipped || (!full && state.coins < u.cost);
+    if(full && !equipped) btn.className = "swap";
+    btn.onclick = () => buy(u.id);
+    row.appendChild(btn); list.appendChild(row);
+  });
+}
+
+$("sellSamosa").onclick = () => sell("samosa");
+$("sellChai").onclick = () => sell("chai");
+$("reset").onclick = () => { state = fresh(); pending = null; say("Game reset. Serve your first customer.", ""); render(); };
+
+setInterval(() => {
+  const n = autoRate();
+  if(!n) return;
+  const p = avgPrice();
+  state.coins += n*p; state.sales += n;
+  render();
+}, 1000);
+
+state = fresh(); render();
+</script>
+</body>
+</html>
